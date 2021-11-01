@@ -3,7 +3,6 @@ Control an AKAI Professional APC mini in Python.
 
 Requires [mido](https://github.com/mido/mido)
 
-Download the file and place it in a directory named "apcmini" together with an empty file named "__init__.py".
 # Usage:
 ```python
 from apcmini import ApcMini
