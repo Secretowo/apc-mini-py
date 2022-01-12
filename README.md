@@ -1,5 +1,5 @@
 # apc-mini-py
-Control an AKAI Professional APC mini in Python.
+Interface with an AKAI Apc Mini midi controller using python
 
 Requires [mido](https://github.com/mido/mido)
 
