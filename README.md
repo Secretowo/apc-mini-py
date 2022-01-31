@@ -7,7 +7,7 @@ Requires [mido](https://github.com/mido/mido)
 
 ```python
 
-import apcmini
+from apc_mini_py import apcmini
 
 # apc = ApcMini(midi_in=None, midi_out=None)
 apc = apcmini.APCMini('APC MINI 0', 'APC MINI 1')

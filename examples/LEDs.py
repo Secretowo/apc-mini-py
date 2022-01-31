@@ -1,4 +1,4 @@
-import apcmini
+from apc_mini_py import apcmini
 import time
 
 # apc = ApcMini(midi_in=None, midi_out=None)
