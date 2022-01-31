@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='apc_mini_py',
-    version='0.1.0',
+    version='0.1.1',
     description='A simple library for interfacing with the Akai APC Mini',
     url='https://github.com/Secretowo/apc-mini-py',
     author='Secret and Lewis L. Foster',
