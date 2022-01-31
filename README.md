@@ -3,6 +3,12 @@ Interface with an AKAI APC Mini MIDI controller using python
 
 Requires [mido](https://github.com/mido/mido)
 
+# Install:
+To install, simply run:
+```
+pip3 install -U git+https://github.com/secretowo/apc-mini-py 
+```
+
 # Usage:
 
 ```python
