@@ -16,6 +16,8 @@ def on_control_event(event):
         print(f"Lower Button {event.button_id} was changed to {event.state} on {event.controller.name}")
     elif isinstance(event, apcmini.SideButton):
         print(f"Side Button {event.button_id} was changed to {event.state} on {event.controller.name}")
+    elif isinstance(event, apcmini.ShiftButton):
+        print(f"Shift Button was changed to {event.state} on {event.controller.name}")
     elif isinstance(event, apcmini.Fader):
         print(f"Fader {event.fader_id} on {event.controller.name} was set to {event.value}!")
 

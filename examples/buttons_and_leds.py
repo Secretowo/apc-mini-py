@@ -17,6 +17,8 @@ def on_control_event(event):
             apc.gridbuttons.set_led(event.x, event.y, "red")  # Turn the button red when pressed
         else:
             apc.gridbuttons.set_led(event.x, event.y, "off")  # and off when not pressed
+    elif isinstance(event, apcmini.ShiftButton):
+        apc.reset()
     elif isinstance(event, apcmini.Fader):
         if event.fader_id == 8:  # Ignore fader ID 8 (the master fader)
             return

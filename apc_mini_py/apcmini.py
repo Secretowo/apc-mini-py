@@ -36,7 +36,7 @@ class APCMini:
         "green_blinking": 2
     }  # Dict of all colours for the side buttons
 
-    LowerButtonMapping = [64, 65, 66, 67, 68, 69, 70, 71] # Mapping of lower buttons from left to right, indexed from 0
+    LowerButtonMapping = [64, 65, 66, 67, 68, 69, 70, 71]  # Mapping of lower buttons from left to right, indexed from 0
 
     LowerButtonColours = {
         "on": 1,
@@ -44,6 +44,8 @@ class APCMini:
         "red": 1,
         "red_blinking": 2
     }  # Dict of all colours for the lower buttons
+
+    ShiftButtonMapping = [98]
 
     def __init__(self, midi_in=None, midi_out=None):
         self.midi_out = mido.open_output(midi_out)  # Open MIDI out for controller
@@ -55,6 +57,7 @@ class APCMini:
         self.gridbuttons = GridButtons(self)
         self.sidebuttons = SideButtons(self)
         self.lowerbuttons = LowerButtons(self)
+        self.shiftbutton = ShiftButton(self)
 
     def reset(self):
         """Turns off all LEDs"""
@@ -102,6 +105,15 @@ class APCMini:
 
                 elif event.type == 'note_off':
                     button = LowerButton(self, LowerButton.get_button_id_from_button_num(event.note), False)
+                    self.event_dispatch(button)
+
+            elif event.note in APCMini.ShiftButtonMapping:
+                if event.type == 'note_on':
+                    button = ShiftButton(self, True)
+                    self.event_dispatch(button)
+
+                elif event.type == 'note_off':
+                    button = ShiftButton(self, False)
                     self.event_dispatch(button)
 
     def start(self):
@@ -233,3 +245,9 @@ class LowerButton:  # A specific side button
             else:
                 raise ValueError(
                     "The only valid colours for the lower buttons are 'on', 'off', 'green', 'blinking_green'")
+
+
+class ShiftButton:  # The shift button
+    def __init__(self, controller: APCMini, state: bool = False):
+        self.controller = controller
+        self.state = state
