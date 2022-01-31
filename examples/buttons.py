@@ -1,4 +1,4 @@
-import apcmini
+from apc_mini_py import apcmini
 
 # Define the APC Mini, first argument: MIDI in, second argument: MIDI out
 apc = apcmini.APCMini('APC MINI MIDI 1', 'APC MINI MIDI 1')
