@@ -1,8 +1,8 @@
-from apc_mini_py import apcmini
+from akai_pro_py import controllers
 from scipy.interpolate import interp1d
 
 # apc = ApcMini(midi_in=None, midi_out=None)
-apc = apcmini.APCMini('APC MINI MIDI 1', 'APC MINI MIDI 1')
+apc = controllers.APCMini('Midi Through Port-0', 'Midi Through Port-0')
 
 midi_to_led = interp1d([0, 127], [0, 7])  # Creates a map from the 7 bit values of MIDI to a 3 bit value for display
 
@@ -12,14 +12,14 @@ apc.reset()  # turn off all leds
 # Defines this function for recieving button presses/fader changes
 @apc.on_event
 def on_control_event(event):
-    if isinstance(event, apcmini.GridButton):  # Checks if the event is a grid button press
+    if isinstance(event, controllers.APCMini.GridButton):  # Checks if the event is a grid button press
         if event.state:
             apc.gridbuttons.set_led(event.x, event.y, "red")  # Turn the button red when pressed
         else:
             apc.gridbuttons.set_led(event.x, event.y, "off")  # and off when not pressed
-    elif isinstance(event, apcmini.ShiftButton):
+    elif isinstance(event, controllers.APCMini.ShiftButton):
         apc.reset()
-    elif isinstance(event, apcmini.Fader):
+    elif isinstance(event, controllers.APCMini.Fader):
         if event.fader_id == 8:  # Ignore fader ID 8 (the master fader)
             return
         value = int(midi_to_led(event.value))  # Map the MIDI value (0,127) to 3 bit (0,7)

@@ -1,0 +1,69 @@
+from akai_pro_py import controllers
+from scipy.interpolate import interp1d
+
+
+# Define the MIDI Mix and APC Mini, first argument: MIDI in, second argument: MIDI out
+midi_mix = controllers.MIDIMix('MIDI Mix MIDI 1', 'MIDI Mix MIDI 1')
+apc = controllers.APCMini('APC MINI MIDI 1', 'APC MINI MIDI 1')
+
+midi_to_led = interp1d([0, 127], [0, 7])  # Creates a map from the 7 bit values of MIDI to a 3 bit value for display
+
+apc.reset()  # turn off all leds
+midi_mix.reset()
+
+
+@midi_mix.on_event
+def on_event_midi_mix(event):
+    if isinstance(event, controllers.MIDIMix.Knob):
+        print(f"Knob {event.x},{event.y} was changed to {event.value} on {event.controller.name}")
+    if isinstance(event, controllers.MIDIMix.Fader):
+        print(f"Fader {event.fader_id} was changed to {event.value} on {event.controller.name}")
+    if isinstance(event, controllers.MIDIMix.MuteButton):
+        print(f"Mute Button {event.button_id} was changed to {event.state} on {event.controller.name}")
+        if event.state:
+            event.set_led("on")
+        else:
+            event.set_led("off")
+    if isinstance(event, controllers.MIDIMix.RecArmButton):
+        print(f"Record Arm Button {event.button_id} was changed to {event.state} on {event.controller.name}")
+        if event.state:
+            event.set_led("on")
+        else:
+            event.set_led("off")
+    if isinstance(event, controllers.MIDIMix.SoloButton):
+        print(f"Solo Button was changed to {event.state} on {event.controller.name}")
+    if isinstance(event, controllers.MIDIMix.BlankButton):
+        print(f"Blank Button {event.button_id} was changed to {event.state} on {event.controller.name}")
+        if event.state:
+            event.set_led("on")
+        else:
+            event.set_led("off")
+
+
+@apc.on_event
+def on_event_apc_mini(event):  # Register event function
+    if isinstance(event, controllers.APCMini.GridButton):  # Checks if the event is a grid button press
+        if event.state:
+            apc.gridbuttons.set_led(event.x, event.y, "red")  # Turn the button red when pressed
+        else:
+            apc.gridbuttons.set_led(event.x, event.y, "off")  # and off when not pressed
+    elif isinstance(event, controllers.APCMini.ShiftButton):
+        apc.reset()
+    elif isinstance(event, controllers.APCMini.Fader):
+        if event.fader_id == 8:  # Ignore fader ID 8 (the master fader)
+            return
+        value = int(midi_to_led(event.value))  # Map the MIDI value (0,127) to 3 bit (0,7)
+        if value == 0:  # If the value is 0 (fader at minimum)
+            for i in range(0, 8):
+                apc.gridbuttons.set_led(event.fader_id, i, "off")  # Set all LEDs in the column to off
+        elif value == 7:  # If the value is 7 (fader at maximum)
+            for i in range(0, 8):
+                apc.gridbuttons.set_led(event.fader_id, i, "green")  # Set all LEDs in column to green
+        else:
+            for i in range(0, value):  # Go through all the LEDs that should be on
+                apc.gridbuttons.set_led(event.fader_id, i, "green")  # and set them to green
+            for i in range(value+1, 8):  # Go through all the LEDs that should be off
+                apc.gridbuttons.set_led(event.fader_id, i, "off")   # and set them to off
+
+
+midi_mix.start()  # Start event loop
