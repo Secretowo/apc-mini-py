@@ -2,6 +2,132 @@ from .base_controller import Controller
 import mido
 import time
 
+from . import errors
+
+
+class InvalidGridButton(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            if isinstance(args[2], tuple):
+                self.x, self.y = args[2]
+                self.button_id = None
+            else:
+                self.x, self.y = (None, None)
+                self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.x, self.y = (None, None)
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.x and self.y:
+            return f"Grid Button {self.x},{self.y} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+
+        elif self.controller and self.midi_port and self.button_id:
+            return f"Grid Button {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+
+        elif not self.controller and not self.midi_port and self.x and self.y:
+            return f"Grid Button {self.x},{self.y} does not exist on controller"
+
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Grid Button {self.button_id} does not exist on controller"
+
+        else:
+            return "Generic invalid Grid Button error"
+
+
+class InvalidFader(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.fader_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.fader_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.fader_id:
+            return f"Fader {self.fader_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Fader {self.fader_id} does not exist on controller"
+
+        else:
+            return "Generic invalid Fader error"
+
+
+class InvalidLowerButton(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.button_id:
+            return f"Lower Button button {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Lower Button button {self.button_id} does not exist on controller"
+
+        else:
+            return "Generic invalid Lower Button button error"
+
+
+class InvalidSideButton(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.button_id:
+            return f"Side Button button {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Side Button button {self.button_id} does not exist on controller"
+
+        else:
+            return "Generic invalid Side Button button error"
+
+
+class InvalidButtonColour(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button = None
+
+    def __str__(self):
+        if isinstance(self.button, APCMini.GridButton):
+            return f"Invalid button colour for Grid buttons, valid options are 0,1,2,3,4,5,6,off,green,green_blinking,red,red_blinking,yellow,yellow_blinking"
+
+        elif isinstance(self.button, APCMini.LowerButton):
+            return f"Invalid button colour for Lower button, valid options are 0,1,2,off,on,red,red_blinking"
+
+        elif isinstance(self.button, APCMini.SideButton):
+            return f"Invalid button colour for Side button, valid options are 0,1,2,off,on,green,green_blinking"
+
+        else:
+            return "Generic invalid button colour error"
+
 
 class APCMini(Controller):
     GridMapping = [
@@ -60,16 +186,21 @@ class APCMini(Controller):
             self.midi_out.send(mido.Message("note_on", note=i, velocity=0))
             time.sleep(0.005)
 
-    def pre_event_dispatch(self, event):
-        if self.setup_in_progress:
+    def product_detect(self, event):
+        try:
+            if event.data[2] != 6:
+                raise errors.ControllerIdentificationError(self, self.midi_in, "Controller did not identify!")
+
             if event.data[4] != 71:
-                raise ValueError("MIDI device is not an Akai device!")
+                raise errors.ControllerIdentificationError("MIDI device is not an Akai device!")
 
             if event.data[5] != 40:
-                raise ValueError("MIDI device is not an Akai APC Mini")
-            self.setup_in_progress = False
-            return
+                raise errors.ControllerIdentificationError("MIDI device is not an Akai APC Mini")
+        except (AttributeError, IndexError):
+            raise errors.ControllerIdentificationError(self, self.midi_in, "MIDI device failed to identify")
+        self.setup_in_progress = False
 
+    def pre_event_dispatch(self, event):
         if self.event_dispatch is None:
             return  # Ignore if a dispatch event is not set with the on_event decorator
 
@@ -141,25 +272,28 @@ class APCMini(Controller):
                     return x, APCMini.GridMapping[x].index(button_num)
                 else:
                     continue
-            raise ValueError("GridButton not found!")
+            raise InvalidGridButton(None, None, button_num)
 
         def set_led(self, colour):
             """Sets this specific button's LED to be the colour given"""
             if isinstance(colour, int):
                 if 0 <= colour <= 6:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=APCMini.GridMapping[self.x][self.y], velocity=colour))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=APCMini.GridMapping[self.x][self.y], velocity=colour))
+                    except IndexError:
+                        raise InvalidGridButton(self.controller, self.controller.midi_in, (self.x, self.y))
                 else:
-                    raise ValueError("Grid colours can only be between 0 and 6")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
             else:
                 if colour in APCMini.GridColours:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=APCMini.GridMapping[self.x][self.y],
-                                     velocity=APCMini.GridColours[colour]))
+                    try:
+                        self.controller.midi_out.send(mido.Message("note_on", note=APCMini.GridMapping[self.x][self.y],
+                                                                   velocity=APCMini.GridColours[colour]))
+                    except IndexError:
+                        raise InvalidGridButton(self.controller, self.controller.midi_in, (self.x, self.y))
                 else:
-                    raise ValueError(
-                        "The only valid colours for the grid are 'off', 'green', 'green_blinking', 'red', 'red_blinking', "
-                        "'yellow', 'yellow_blinking'")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
 
     class Fader:  # A single fader
         def __init__(self, controller, fader_id, value):
@@ -169,7 +303,10 @@ class APCMini(Controller):
 
         @staticmethod
         def get_fader_id_from_number(fader_num):
-            return APCMini.FaderMapping.index(fader_num)
+            try:
+                return APCMini.FaderMapping.index(fader_num)
+            except IndexError:
+                raise InvalidFader(None, None, fader_num)
 
     class SideButtons:  # All the side buttons
         def __init__(self, controller):
@@ -193,18 +330,23 @@ class APCMini(Controller):
             """Sets this specific button's LED to be the colour given"""
             if isinstance(colour, int):
                 if 0 <= colour <= 6:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=APCMini.SideButtonMapping[self.button_id], velocity=colour))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=APCMini.SideButtonMapping[self.button_id], velocity=colour))
+                    except IndexError:
+                        raise InvalidSideButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError("Side Button colours can only be between 0 and 2")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
             else:
                 if colour in APCMini.SideButtonColours:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=APCMini.SideButtonMapping[self.button_id],
-                                     velocity=APCMini.SideButtonColours[colour]))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=APCMini.SideButtonMapping[self.button_id],
+                                         velocity=APCMini.SideButtonColours[colour]))
+                    except IndexError:
+                        raise InvalidLowerButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError(
-                        "The only valid colours for the side buttons are 'on', 'off', 'green', 'blinking_green'")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
 
     class LowerButtons:  # All the lower buttons
         def __init__(self, controller):
@@ -222,24 +364,32 @@ class APCMini(Controller):
 
         @staticmethod
         def get_button_id_from_button_num(button_num):
-            return APCMini.LowerButtonMapping.index(button_num)
+            try:
+                return APCMini.LowerButtonMapping.index(button_num)
+            except IndexError:
+                raise InvalidLowerButton(None, None, button_num)
 
         def set_led(self, colour):
             """Sets this specific button's LED to be the colour given"""
             if isinstance(colour, int):
                 if 0 <= colour <= 6:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=APCMini.LowerButtonMapping[self.button_id], velocity=colour))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=APCMini.LowerButtonMapping[self.button_id], velocity=colour))
+                    except IndexError:
+                        raise InvalidLowerButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError("Lower Button colours can only be between 0 and 2")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
             else:
                 if colour in APCMini.LowerButtonColours:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=APCMini.LowerButtonMapping[self.button_id],
-                                     velocity=APCMini.LowerButtonColours[colour]))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=APCMini.LowerButtonMapping[self.button_id],
+                                         velocity=APCMini.LowerButtonColours[colour]))
+                    except IndexError:
+                        raise InvalidLowerButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError(
-                        "The only valid colours for the lower buttons are 'on', 'off', 'green', 'blinking_green'")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
 
     class ShiftButton:  # The shift button
         def __init__(self, controller, state: bool = False):

@@ -1,7 +1,7 @@
 from akai_pro_py import controllers
 
 # Define the APC Mini, first argument: MIDI in, second argument: MIDI out
-apc = controllers.APCMini('Midi Through Port-0', 'Midi Through Port-0')
+apc = controllers.APCMini('APC MINI MIDI 1', 'APC MINI MIDI 1')
 
 
 # Defines this function for recieving button presses/fader changes

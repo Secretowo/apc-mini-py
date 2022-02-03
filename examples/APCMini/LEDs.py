@@ -2,7 +2,7 @@ from akai_pro_py import controllers
 import time
 
 # apc = ApcMini(midi_in=None, midi_out=None)
-apc = controllers.APCMini('Midi Through Port-0', 'Midi Through Port-0')
+apc = controllers.APCMini('APC MINI MIDI 1', 'APC MINI MIDI 1')
 
 apc.reset()  # turn off all leds
 

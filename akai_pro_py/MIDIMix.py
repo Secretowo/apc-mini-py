@@ -1,6 +1,140 @@
 from .base_controller import Controller
 import mido
 import time
+from . import errors
+
+
+class InvalidKnob(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            if isinstance(args[2], tuple):
+                self.x, self.y = args[2]
+                self.button_id = None
+            else:
+                self.x, self.y = (None, None)
+                self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.x, self.y = (None, None)
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.x and self.y:
+            return f"Knob {self.x},{self.y} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+        elif self.controller and self.midi_port and self.button_id:
+            return f"Knob {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+        elif not self.controller and not self.midi_port and self.x and self.y:
+            return f"Knob {self.x},{self.y} does not exist on controller"
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Knob {self.button_id} does not exist on controller"
+        else:
+            return "Generic invalid knob coordinate error"
+
+
+class InvalidRecArmButton(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.button_id:
+            return f"Record Arm button {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Record Arm button {self.button_id} does not exist on controller"
+        else:
+            return "Generic invalid Record Arm button error"
+
+
+class InvalidMuteButton(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.button_id:
+            return f"Mute button {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Mute button {self.button_id} does not exist on controller"
+        else:
+            return "Generic invalid Mute button error"
+
+
+class InvalidBlankButton(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.button_id:
+            return f"Blank button {self.button_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Blank button {self.button_id} does not exist on controller"
+        else:
+            return "Generic invalid Blank button error"
+
+
+class InvalidButtonColour(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.button = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.button = None
+
+    def __str__(self):
+        if isinstance(self.button, MIDIMix.MuteButton):
+            return f"Invalid button colour for Mute button, valid options are 0,1,on,off,yellow"
+        elif isinstance(self.button, MIDIMix.RecArmButton):
+            return f"Invalid button colour for Record Arm button, valid options are 0,1,on,off,red"
+        elif isinstance(self.button, MIDIMix.BlankButton):
+            return f"Invalid button colour for Blank button, valid options are 0,1,on,off,yellow"
+        else:
+            return "Generic invalid button colour error"
+
+
+class InvalidFader(errors.ControllerError):
+    def __init__(self, *args):
+        if args:
+            self.controller = args[0]
+            self.midi_port = args[1]
+            self.fader_id = args[2]
+        else:
+            self.controller = None
+            self.midi_port = None
+            self.fader_id = None
+
+    def __str__(self):
+        if self.controller and self.midi_port and self.fader_id:
+            return f"Fader {self.fader_id} does not exist on controller {self.controller.name}, MIDI port: {self.midi_port.name}"
+
+        elif not self.controller and not self.midi_port and self.button_id:
+            return f"Fader {self.fader_id} does not exist on controller"
+
+        else:
+            return "Generic invalid Fader error"
 
 
 class MIDIMix(Controller):
@@ -48,14 +182,22 @@ class MIDIMix(Controller):
         self.recarmbuttons = MIDIMix.RecArmButtons(self)
         self.blankbuttons = MIDIMix.BlankButtons(self)
 
-    def pre_event_dispatch(self, event):
-        if self.setup_in_progress:
+    def product_detect(self, event):
+        try:
+            if event.data[2] != 6:
+                raise errors.ControllerIdentificationError(self, self.midi_in, "Controller did not identify!")
+
             if event.data[4] != 71:
-                raise ValueError("MIDI device is not an Akai device!")
+                raise errors.ControllerIdentificationError(self, self.midi_in, "MIDI device is not an Akai device!")
 
             if event.data[5] != 49:
-                raise ValueError("MIDI device is not an Akai MIDI Mix")
-            self.setup_in_progress = False
+                raise errors.ControllerIdentificationError(self, self.midi_in, "MIDI device is not an Akai MIDI Mix")
+                          
+        except (AttributeError, KeyError):
+            raise errors.ControllerIdentificationError(self, self.midi_in, "MIDI device failed to identify")
+        self.setup_in_progress = False
+
+    def pre_event_dispatch(self, event):
         if self.event_dispatch is None:
             return  # Ignore if a dispatch event is not set with the on_event decorator
 
@@ -66,6 +208,7 @@ class MIDIMix(Controller):
             elif event.control in MIDIMix.Knobs:
                 knob = MIDIMix.Knob(self, *MIDIMix.Knob.get_knob_xy_from_number(event.control), event.value)
                 self.event_dispatch(knob)
+
         elif event.type == "note_on" or event.type == "note_off":
             if event.note in MIDIMix.RecArmMapping:
                 if event.type == "note_on":
@@ -76,6 +219,7 @@ class MIDIMix(Controller):
                     button = MIDIMix.RecArmButton(self, MIDIMix.RecArmButton.get_button_id_from_button_num(event.note),
                                                   False)
                     self.event_dispatch(button)
+
             elif event.note in MIDIMix.MuteMapping:
                 if event.type == "note_on":
                     button = MIDIMix.MuteButton(self, MIDIMix.MuteButton.get_button_id_from_button_num(event.note),
@@ -85,6 +229,7 @@ class MIDIMix(Controller):
                     button = MIDIMix.MuteButton(self, MIDIMix.MuteButton.get_button_id_from_button_num(event.note),
                                                 False)
                     self.event_dispatch(button)
+
             elif event.note in MIDIMix.BlankMapping:
                 if event.type == "note_on":
                     button = MIDIMix.BlankButton(self, MIDIMix.BlankButton.get_button_id_from_button_num(event.note),
@@ -94,6 +239,7 @@ class MIDIMix(Controller):
                     button = MIDIMix.BlankButton(self, MIDIMix.BlankButton.get_button_id_from_button_num(event.note),
                                                  False)
                     self.event_dispatch(button)
+
             elif event.note in MIDIMix.SoloMapping:
                 if event.type == "note_on":
                     button = MIDIMix.SoloButton(self, True)
@@ -117,7 +263,10 @@ class MIDIMix(Controller):
 
         @staticmethod
         def get_fader_id_from_number(fader_num):
-            return MIDIMix.FaderMapping.index(fader_num)
+            try:
+                return MIDIMix.FaderMapping.index(fader_num)
+            except IndexError:
+                raise InvalidFader(None, None, fader_num)
 
     class Knob:
         def __init__(self, controller, x, y, value):
@@ -127,14 +276,14 @@ class MIDIMix(Controller):
             self.value = value
 
         @staticmethod
-        def get_knob_xy_from_number(button_num):
+        def get_knob_xy_from_number(knob_num):
             for column in MIDIMix.KnobGridMapping:
                 x = MIDIMix.KnobGridMapping.index(column)
-                if button_num in column:
-                    return x, MIDIMix.KnobGridMapping[x].index(button_num)
+                if knob_num in column:
+                    return x, MIDIMix.KnobGridMapping[x].index(knob_num)
                 else:
                     continue
-            raise ValueError("GridButton not found!")
+            raise InvalidKnob(None, None, knob_num)
 
     class MuteButtons:  # All the lower buttons
         def __init__(self, controller):
@@ -152,24 +301,32 @@ class MIDIMix(Controller):
 
         @staticmethod
         def get_button_id_from_button_num(button_num):
-            return MIDIMix.MuteMapping.index(button_num)
+            try:
+                return MIDIMix.MuteMapping.index(button_num)
+            except IndexError:
+                raise InvalidMuteButton(None, None, button_num)
 
         def set_led(self, colour):
             """Sets this specific button's LED to be the colour given"""
             if isinstance(colour, int):
                 if 0 <= colour <= 1:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=MIDIMix.MuteMapping[self.button_id], velocity=colour))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=MIDIMix.MuteMapping[self.button_id], velocity=colour))
+                    except IndexError:
+                        raise InvalidMuteButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError("Lower Button colours can only be between 0 and 2")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
             else:
                 if colour in MIDIMix.MuteColours:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=MIDIMix.MuteMapping[self.button_id],
-                                     velocity=MIDIMix.MuteColours[colour]))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=MIDIMix.MuteMapping[self.button_id],
+                                         velocity=MIDIMix.MuteColours[colour]))
+                    except IndexError:
+                        raise InvalidMuteButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError(
-                        "The only valid colours for the lower buttons are 'on', 'off', 'green', 'blinking_green'")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
 
     class RecArmButtons:  # All the lower buttons
         def __init__(self, controller):
@@ -187,24 +344,32 @@ class MIDIMix(Controller):
 
         @staticmethod
         def get_button_id_from_button_num(button_num):
-            return MIDIMix.RecArmMapping.index(button_num)
+            try:
+                return MIDIMix.RecArmMapping.index(button_num)
+            except:
+                raise InvalidRecArmButton(None, None, button_num)
 
         def set_led(self, colour):
             """Sets this specific button's LED to be the colour given"""
             if isinstance(colour, int):
                 if 0 <= colour <= 1:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=MIDIMix.RecArmMapping[self.button_id], velocity=colour))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=MIDIMix.RecArmMapping[self.button_id], velocity=colour))
+                    except IndexError:
+                        raise InvalidRecArmButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError("Lower Button colours can only be between 0 and 2")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
             else:
                 if colour in MIDIMix.RecArmColours:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=MIDIMix.RecArmMapping[self.button_id],
-                                     velocity=MIDIMix.RecArmColours[colour]))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=MIDIMix.RecArmMapping[self.button_id],
+                                         velocity=MIDIMix.RecArmColours[colour]))
+                    except IndexError:
+                        raise InvalidRecArmButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError(
-                        "The only valid colours for the lower buttons are 'on', 'off', 'green', 'blinking_green'")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
 
     class BlankButtons:  # All the lower buttons
         def __init__(self, controller):
@@ -222,24 +387,32 @@ class MIDIMix(Controller):
 
         @staticmethod
         def get_button_id_from_button_num(button_num):
-            return MIDIMix.BlankMapping.index(button_num)
+            try:
+                return MIDIMix.BlankMapping.index(button_num)
+            except IndexError:
+                raise InvalidBlankButton(None, None, button_num)
 
         def set_led(self, colour):
             """Sets this specific button's LED to be the colour given"""
             if isinstance(colour, int):
                 if 0 <= colour <= 1:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=MIDIMix.BlankMapping[self.button_id], velocity=colour))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=MIDIMix.BlankMapping[self.button_id], velocity=colour))
+                    except IndexError:
+                        raise InvalidBlankButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError("Lower Button colours can only be between 0 and 2")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
             else:
                 if colour in MIDIMix.RecArmColours:
-                    self.controller.midi_out.send(
-                        mido.Message("note_on", note=MIDIMix.BlankMapping[self.button_id],
-                                     velocity=MIDIMix.BlankColours[colour]))
+                    try:
+                        self.controller.midi_out.send(
+                            mido.Message("note_on", note=MIDIMix.BlankMapping[self.button_id],
+                                         velocity=MIDIMix.BlankColours[colour]))
+                    except IndexError:
+                        raise InvalidBlankButton(self.controller, self.controller.midi_in, self.button_id)
                 else:
-                    raise ValueError(
-                        "The only valid colours for the lower buttons are 'on', 'off', 'green', 'blinking_green'")
+                    raise InvalidButtonColour(self.controller, self.controller.midi_in, self)
 
     class SoloButton:  # The shift button
         def __init__(self, controller, state: bool = False):
