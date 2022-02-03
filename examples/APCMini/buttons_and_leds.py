@@ -2,7 +2,7 @@ from akai_pro_py import controllers
 from scipy.interpolate import interp1d
 
 # apc = ApcMini(midi_in=None, midi_out=None)
-apc = controllers.APCMini('Midi Through Port-0', 'Midi Through Port-0')
+apc = controllers.APCMini('APC MINI MIDI 1', 'APC MINI MIDI 1')
 
 midi_to_led = interp1d([0, 127], [0, 7])  # Creates a map from the 7 bit values of MIDI to a 3 bit value for display
 
