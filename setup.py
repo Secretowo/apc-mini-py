@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='akai_pro_py',
-    version='0.2.2',
+    version='0.2.3',
     description='A simple library for interfacing with the Akai Professional series of MIDI controllers',
     url='https://github.com/Secretowo/apc-mini-py',
     author='Secret and Lewis L. Foster',

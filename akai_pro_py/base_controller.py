@@ -11,6 +11,7 @@ class Controller:
         self.setup_in_progress = True
         self.midi_in.callback = self.on_midi_in  # Set callback function for incomming MIDI messages
         self.event_dispatch = None  # Defines the dispatch event to be none
+        self.ready_dispatch = None
         self.raw_dispatch = False
         self.loop = asyncio.new_event_loop()  # Creates the event loop for handling button presses
         self.name = "Base Controller"  # Name of the device
@@ -22,9 +23,16 @@ class Controller:
             raise errors.AkaiProPyError("Event dispatch function is already defined!")
         self.event_dispatch = func
 
+    def on_ready(self, func):
+        if self.ready_dispatch is not None:
+            raise errors.AkaiProPyError("Ready event function already defined!")
+        self.ready_dispatch = func
+
     def on_midi_in(self, event):
         if self.setup_in_progress:
-            self.product_detect(event)
+            product_detect_success = self.product_detect(event)
+            if product_detect_success and self.ready_dispatch is not None:
+                self.ready_dispatch()
         else:
             self.pre_event_dispatch(event)
 
@@ -35,6 +43,7 @@ class Controller:
         except KeyError:
             raise errors.ControllerIdentificationError(self, self.midi_in, "Controller failed to identify!")
         self.setup_in_progress = False
+        return True
 
     def pre_event_dispatch(self, event):
         if self.event_dispatch is None:

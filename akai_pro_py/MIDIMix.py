@@ -196,6 +196,7 @@ class MIDIMix(Controller):
         except (AttributeError, KeyError):
             raise errors.ControllerIdentificationError(self, self.midi_in, "MIDI device failed to identify")
         self.setup_in_progress = False
+        return True
 
     def pre_event_dispatch(self, event):
         if self.event_dispatch is None:
